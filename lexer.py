@@ -7,7 +7,7 @@ reserverd_words = {
     "func": "FUNC",
     "void": "VOID",
     "int": "INT",
-    "float": "float",
+    "float": "FLOAT",
     "char": "CHAR",
     "string": "STRING",
     "bool": "BOOL",
@@ -32,12 +32,14 @@ reserverd_words = {
     "sum": "SUM",
     "plot": "PLOT",
     "histogram": "HISTOGRAM",
-    "print": "PRINT"
+    "print": "PRINT",
 }
 
-tokens = ["ID", "CTEINT", "CTEFLOAT", "CTECHAR", "CTESTRING" ] + list(reserverd_words.values())
+tokens = ["ID", "CTEINT", "CTEFLOAT", "CTECHAR", "CTESTRING", "AND", "OR", "LT", "GT", "LTOE", "GTOE", "E", "NE",
+          "LEFTBRACKET", "RIGHTBRACKET", "LEFTPARENTHESIS", "RIGHTPARENTHESIS", "LEFTCURLYBRACE", "RIGHTCURLYBRACE",
+           "SEMICOLON", "COMMA", "PLUS", "MINUS", "MULTIPLICATION", "DIVISION", "EQUAL", "EXCLAMATION", "DOT" ] + list(reserverd_words.values())
 
-literals = "[](){};,+-*/=<>!&|."
+literals = "[](){};,+-*/=!."
 
 t_ignore = ' \t'
 
@@ -46,6 +48,91 @@ t_ignore = ' \t'
     t.type = reserverd_words.get(t.value, "COMMENT")
     return t
 """
+
+t_AND = r'\&\&'
+t_OR = r'\|\|'
+t_LT = r'\<'
+t_GT = r'\>'
+t_LTOE = r'\<\='
+t_GTOE = r'\>\='
+t_E = r'\=\='
+t_NE = r'\!\='
+
+def t_LEFTBRACKET(t):
+    r'\['
+    t.type = '['
+    return t
+    
+def t_RIGHTBRACKET(t):
+    r'\]'
+    t.type = ']'
+    return t
+
+def t_LEFTPARENTHESIS(t):
+    r'\('
+    t.type = '('
+    return t
+
+def t_RIGHTPARENTHESIS(t):
+    r'\)'
+    t.type = ')'
+    return t
+
+def t_LEFTCURLYBRACE(t):
+    r'\{'
+    t.type = '{'
+    return t
+
+def t_RIGHTCURLYBRACE(t):
+    r'\}'
+    t.type = '}'
+    return t
+
+def t_SEMICOLON(t):
+    r'\;'
+    t.type = ';'
+    return t
+
+def t_COMMA(t):
+    r'\,'
+    t.type = ','
+    return t
+
+def t_PLUS(t):
+    r'\+'
+    t.type = '+'
+    return t
+
+def t_MINUS(t):
+    r'\-'
+    t.type = '-'
+    return t
+
+def t_MULTIPLICATION(t):
+    r'\*'
+    t.type = '*'
+    return t
+
+def t_DIVISION(t):
+    r'\/'
+    t.type = '/'
+    return t
+
+def t_EQUAL(t):
+    r'\='
+    t.type = '='
+    return t
+
+def t_EXCLAMATION(t):
+    r'\!'
+    t.type = '!'
+    return t
+
+def t_DOT(t): 
+    r'\.'
+    t.type = '.'
+    return t
+
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
     t.type = reserverd_words.get(t.value, "ID")
