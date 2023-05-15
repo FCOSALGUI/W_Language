@@ -7,7 +7,10 @@ def p_program(p):
     program : var_dec df_dec modules MAIN LEFTCURLYBRACE body RIGHTCURLYBRACE END
             | empty
     '''
-    p[0] = ('rule program: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8])
+    if (len(p) == 9):
+        p[0] = ('rule program: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8])
+    else:
+        p[0] = ('rule program: ', p[1])
 
 # VAR_DEC
 def p_var_dec(p):
@@ -47,14 +50,20 @@ def p_var_dec3(p):
     var_dec3 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON
              | empty
     '''
-    p[0] = ('rule var_dec3: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7])
+    if (len(p) == 8):
+        p[0] = ('rule var_dec3: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7])
+    else:
+        p[0] = ('rule var_dec3: ', p[1])
 
 def p_var_dec4(p):
     '''
     var_dec4 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON
              | empty
     '''
-    p[0] = ('rule var_dec4: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
+    if (len(p) == 11):
+        p[0] = ('rule var_dec4: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
+    else:
+        p[0] = ('rule var_dec4: ', p[1])
 
 # DF_DEC
 def p_df_dec(p):
@@ -127,7 +136,7 @@ def p_modules3(p):
 
 def p_modules4(p):
     '''
-    modules4 : RETURN ID SEMICOLON
+    modules4 : RETURN exp SEMICOLON
              | empty
     '''
     if (len(p) == 4):
@@ -542,5 +551,4 @@ file = open("archivo.w", "r")
 content = file.read()
 result = parser.parse(content)
 
-
-print(type(result))
+print(result)
