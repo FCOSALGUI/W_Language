@@ -8,11 +8,11 @@ var int matrix[5][4];
 dataframe tabla [3] = (int contador, string nombre, float resultado);
 
 func int modulo01 (int variable_local, float cosa) {
-    int variable local02, resultado;
-    int contador;
-    float cosa1;
+    var int local02, resultado;
+    var int contador;
+    var float cosa1;
 
-    variable local02 = variable_local;
+    local02 = variable_local;
 
     if (cosa1 > cosa) {
         resultado = 10;
@@ -28,7 +28,7 @@ func int modulo01 (int variable_local, float cosa) {
 } 
 
 main {
-    print(modulo01(2, 14.4));
+    write(modulo01(2, 14.4));
 }
 
 end

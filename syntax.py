@@ -5,6 +5,7 @@ from lexer import *
 def p_program(p):
     '''
     program : var_dec df_dec modules MAIN LEFTCURLYBRACE body RIGHTCURLYBRACE END
+            | empty
     '''
     p[0] = ('rule program: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8])
 
@@ -27,7 +28,7 @@ def p_var_dec1(p):
              | empty
     '''
     if (len(p) == 6):
-        p[0] = ('rule var_dec1: ', p[1], p[2], p[3], p[4], p[6])
+        p[0] = ('rule var_dec1: ', p[1], p[2], p[3], p[4], p[5])
     else:
         p[0] = ('rule var_dec1: ', p[1])
 
@@ -44,12 +45,14 @@ def p_var_dec2(p):
 def p_var_dec3(p):
     '''
     var_dec3 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON
+             | empty
     '''
     p[0] = ('rule var_dec3: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7])
 
 def p_var_dec4(p):
     '''
     var_dec4 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON
+             | empty
     '''
     p[0] = ('rule var_dec4: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
 
@@ -525,7 +528,6 @@ def p_ctebool(p):
             | FALSE
     '''
     p[0] = ('rule ctebool: ', p[1])
-
 def p_empty(p):
      'empty :'
      pass
@@ -541,4 +543,4 @@ content = file.read()
 result = parser.parse(content)
 
 
-print(result)
+print(type(result))

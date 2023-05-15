@@ -1,9 +1,7 @@
 from ply.lex import lex
 
 reserverd_words = {
-    "program": "PROGRAM",
     "var" : "VAR",
-    "null": "NULL",
     "func": "FUNC",
     "void": "VOID",
     "int": "INT",
@@ -11,7 +9,6 @@ reserverd_words = {
     "char": "CHAR",
     "string": "STRING",
     "bool": "BOOL",
-    "array": "ARRAY",
     "dataframe": "DATAFRAME",
     "if": "IF",
     "else": "ELSE",
@@ -33,13 +30,14 @@ reserverd_words = {
     "plot": "PLOT",
     "histogram": "HISTOGRAM",
     "print": "PRINT",
+    "main": "MAIN"
 }
 
 tokens = ["ID", "CTEINT", "CTEFLOAT", "CTECHAR", "CTESTRING", "AND", "OR", "LT", "GT", "LTOE", "GTOE", "E", "NE",
           "LEFTBRACKET", "RIGHTBRACKET", "LEFTPARENTHESIS", "RIGHTPARENTHESIS", "LEFTCURLYBRACE", "RIGHTCURLYBRACE",
-           "SEMICOLON", "COMMA", "PLUS", "MINUS", "MULTIPLICATION", "DIVISION", "EQUAL", "EXCLAMATION", "DOT" ] + list(reserverd_words.values())
+           "SEMICOLON", "COMMA", "PLUS", "MINUS", "MULTIPLICATION", "DIVISION", "EQUAL", "DOT" ] + list(reserverd_words.values())
 
-literals = "[](){};,+-*/=!."
+literals = "[](){};,+-*/=."
 
 t_ignore = ' \t'
 
@@ -60,77 +58,58 @@ t_NE = r'\!\='
 
 def t_LEFTBRACKET(t):
     r'\['
-    t.type = '['
     return t
     
 def t_RIGHTBRACKET(t):
     r'\]'
-    t.type = ']'
     return t
 
 def t_LEFTPARENTHESIS(t):
     r'\('
-    t.type = '('
     return t
 
 def t_RIGHTPARENTHESIS(t):
     r'\)'
-    t.type = ')'
     return t
 
 def t_LEFTCURLYBRACE(t):
     r'\{'
-    t.type = '{'
     return t
 
 def t_RIGHTCURLYBRACE(t):
     r'\}'
-    t.type = '}'
     return t
 
 def t_SEMICOLON(t):
     r'\;'
-    t.type = ';'
     return t
 
 def t_COMMA(t):
     r'\,'
-    t.type = ','
     return t
 
 def t_PLUS(t):
     r'\+'
-    t.type = '+'
     return t
 
 def t_MINUS(t):
     r'\-'
-    t.type = '-'
     return t
 
 def t_MULTIPLICATION(t):
     r'\*'
-    t.type = '*'
     return t
 
 def t_DIVISION(t):
     r'\/'
-    t.type = '/'
     return t
 
 def t_EQUAL(t):
     r'\='
-    t.type = '='
-    return t
-
-def t_EXCLAMATION(t):
-    r'\!'
-    t.type = '!'
     return t
 
 def t_DOT(t): 
     r'\.'
-    t.type = '.'
     return t
 
 def t_ID(t):
