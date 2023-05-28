@@ -1,6 +1,7 @@
 var int a, b, entero, entero1, entero_02;
 var float flotante;
 var float flotante__02;
+var string hello;
 
 var string palabras[25];
 var int matrix[5][4];

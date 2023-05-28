@@ -1,10 +1,19 @@
 from ply.yacc import yacc
 from lexer import *
+from FuncTable import FuncTable
+from Func import Func
+from VarsTable import VarsTable
+from Var import Var
+
+from QuadList import QuadList
+from Semantics import Semantics
+
+### Sintaxis ###
 
 # PROGRAM
 def p_program(p):
     '''
-    program : var_dec df_dec modules MAIN LEFTCURLYBRACE body RIGHTCURLYBRACE END
+    program : np_create_mainFunc np_set_scope_main var_dec df_dec modules MAIN np_set_goto_main LEFTCURLYBRACE body RIGHTCURLYBRACE END
             | empty
     '''
     if (len(p) == 9):
@@ -25,7 +34,7 @@ def p_var_dec(p):
 
 def p_var_dec1(p):
     '''
-    var_dec1 : VAR type ID var_dec2 SEMICOLON
+    var_dec1 : VAR type ID np_add_variable var_dec2 SEMICOLON
              | var_dec3
              | var_dec4
              | empty
@@ -37,7 +46,7 @@ def p_var_dec1(p):
 
 def p_var_dec2(p):
     '''
-    var_dec2 : COMMA ID var_dec2
+    var_dec2 : COMMA ID np_variable_same_type var_dec2
              | empty
     '''
     if (len(p) == 4):
@@ -493,13 +502,13 @@ def p_m_exp2(p):
 # T
 def p_t(p):
     '''
-    t : f t1
+    t : f np_pop_operand_md t1
     ''' 
     p[0] = ('rule t: ', p[1], p[2])
 
 def p_t1(p):
     '''
-    t1 : t2 t
+    t1 : t2 np_push_operand_md t
        | empty
     '''
     if (len(p) == 3):
@@ -517,13 +526,13 @@ def p_t2(p):
 # F
 def p_f(p):
     '''
-    f : LEFTPARENTHESIS exp RIGHTPARENTHESIS
-      | CTEINT
-      | CTEFLOAT
-      | CTECHAR
-      | CTESTRING
-      | ctebool
-      | variable
+    f : LEFTPARENTHESIS np_create_temporal_operator_list exp np_delete_temporal_list RIGHTPARENTHESIS 
+      | CTEINT np_add_constant_int
+      | CTEFLOAT np_add_constant_float
+      | CTECHAR np_add_constant_char
+      | CTESTRING np_add_constant_string
+      | ctebool np_add_constant_bool
+      | variable np_push_id
       | call
     '''
     if (len(p) == 4):
@@ -545,10 +554,352 @@ def p_error(p):
     print(f'Syntax error at {p.value!r} on line {p.lineno} of type {p}')
     exit()
 
+### Creacion de estructuras principales ###
+FunctionTable = FuncTable()
+QuadrupleList = QuadList()
+
+jumpStack = []
+operatorStack = []
+operandsStack = []
+typeStack = []
+
+scope = ""
+varType = ""
+
+### Direcciones Virtuales ###
+# Globales
+Gint = [5000, 5999]
+Gfloat = [6000, 6999]
+Gstring = [7000, 7999]
+Gchar = [8000, 8999]
+Gbool = [9000, 9999]
+
+# Locales
+Lint = [10000, 10999]
+Lfloat = [11000, 11999]
+Lstring = [12000, 12999]
+Lchar = [13000, 13999]
+Lbool = [14000, 14999]
+
+# Temporales
+Tint = [15000, 15999]
+Tfloat = [16000, 16999]
+Tstring = [17000, 17999]
+Tchar = [18000, 18999]
+Tbool = [19000, 19999]
+
+# Constantes
+Cint = [20000, 20999]
+Cfloat = [21000, 21999]
+Cstring = [22000, 22999]
+Cchar = [23000, 23999]
+Cbool = [24000, 24999]
+
+### Contadores para variables ###
+# Globales
+CGint = 0
+CGfloat = 0
+CGstring = 0
+CGchar = 0
+CGbool = 0
+
+# Locales
+CLint = 0
+CLfloat = 0
+CLstring = 0
+CLchar = 0
+CLbool = 0
+
+# Temporales
+CTint = 0
+CTfloat = 0
+CTstring = 0
+CTchar = 0
+CTbool = 0
+
+# Constantes
+CCint = 0
+CCfloat = 0
+CCstring = 0
+CCchar = 0
+CCbool = 0
+
+### Cubo Semantico ###
+semanticCube = Semantics()
+
+### Puntos neuralgicos ###
+def p_np_set_scope_main(p):
+    '''
+    np_set_scope_main : empty
+    '''
+    global scope
+    scope = "main"
+
+def p_np_create_mainFunc(p):
+    '''
+    np_create_mainFunc : empty
+    '''
+    vTable = VarsTable()
+    FunctionTable.addFunc("main", "main", None, None, vTable, None)
+    jumpStack.append(0)
+    QuadrupleList.addQuad("goto", None, None, None)
+
+### Guardar variables ###
+def p_np_add_variable(p):
+    '''
+    np_add_variable : empty
+    '''
+    global varType
+    varType = p[-2][1]
+    name = p[-1]
+    addVariable(varType, name)
+
+def p_np_variable_same_type(p):
+    '''
+    np_variable_same_type : empty
+    '''
+    name = p[-1]
+    addVariable(varType, name)
+
+def p_np_set_goto_main(p):
+    '''
+    np_set_goto_main : empty
+    '''
+    global scope
+    scope = "main"
+    address = jumpStack.pop()
+    QuadrupleList.editQuadGoto(address, len(QuadrupleList.list))
+
+#//TODO: Agregar funcionalidad para guardar direcciones de arreglos
+def p_np_push_id(p):
+    '''
+    np_push_id : empty
+    '''
+    name = p[-1][1]
+    address = FunctionTable.searchVar(name, scope)
+    varType = determineVarType(address)
+
+    operandsStack.append(address)
+    typeStack.append(varType)
+
+### Guardar Constantes ###
+Constants = VarsTable()
+
+def p_np_add_constant_int(p):
+    '''
+    np_add_constant_int : empty
+    '''
+    global CCint
+    address = Cint[0] + CCint
+    name = p[-1]
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+    
+    operand = Constants.searchVar(name)
+    operandsStack.append(operand.address)
+    typeStack.append("int")
+
+def p_np_add_constant_float(p):
+    '''
+    np_add_constant_float : empty
+    '''
+    global CCfloat
+    address = Cfloat[0] + CCfloat
+    name = p[-1]
+    if (address > Cfloat[1]):
+        print("Stack overflow of constant floats for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCfloat += 1
+
+    operand = Constants.searchVar(name)
+    operandsStack.append(operand.address)
+    typeStack.append("float")
+
+def p_np_add_constant_char(p):
+    '''
+    np_add_constant_char : empty
+    '''
+    global CCchar
+    address = Cchar[0] + Cchar
+    name = p[-1]
+    if (address > Cchar[1]):
+        print("Stack overflow of constant chars for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCchar += 1
+
+    operand = Constants.searchVar(name)
+    operandsStack.append(operand.address)
+    typeStack.append("char")
+
+def p_np_add_constant_string(p):
+    '''
+    np_add_constant_string : empty
+    '''
+    global CCstring
+    address = Cstring[0] + Cstring
+    name = p[-1]
+    if (address > Cstring[1]):
+        print("Stack overflow of constant strings for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCstring += 1
+
+    operand = Constants.searchVar(name)
+    operandsStack.append(operand.address)
+    typeStack.append("string")
+
+def p_np_add_constant_bool(p):
+    '''
+    np_add_constant_bool : empty
+    '''
+    global CCbool
+    address = Cbool[0] + Cbool
+    name = p[-1]
+    if (address > Cbool[1]):
+        print("Stack overflow of constant bools for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCbool += 1
+
+    operand = Constants.searchVar(name)
+    operandsStack.append(operand.address)
+    typeStack.append("bool")
+
+### Puntos neuralgicos para estatutos lineales ###
+def p_np_push_operand_md(p):
+    '''
+    np_push_operand_md : empty
+    '''
+    operator = p[-1][1]
+    operatorStack.append(operator)
+
+def p_np_pop_operand_md(p):
+    '''
+    np_pop_operand_md : empty
+    '''
+    # //TODO: Agregar funcionalidad para verificar el tope de la lista del ultimo elemento de los operadores, accesando lista de listas
+    rightOperand = operandsStack.pop()
+    rightType = typeStack.pop()
+
+    leftOperand = operandsStack.pop()
+    leftType = typeStack.pop()
+
+    operator = operatorStack.pop()
+
+    resultType = semanticCube.resultType(operator, leftType, rightType)
+
+    # //TODO: Agregar funcionalidad para obtener la direccion de variables temporales para pushear a la pila de operandos como resultado
+    # result = *(lo que salga de la funcionalidad)
+
+    QuadrupleList.addQuad(operator, leftOperand, rightOperand, )
+
+def p_np_create_temporal_operator_list(p):
+    '''
+    np_create_temporal_operator_list : empty
+    '''
+    temp = operatorStack
+    while(type(temp) == type([])):
+        if(len(temp) > 0):
+            return
+
+### Funcion para agregar variables a la tabla de variables ###
+# //TODO: Agregar funcionalidad para guardar variables locales luego de cambiar el scope a una funcion
+def addVariable(varType, name):
+    address = 0
+    if(scope == "main"):
+        if (varType == "int"):
+            global CGint
+            address = Gint[0] + CGint
+            if (address > Gint[1]):
+                print("Stack overflow of global integers for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CGint += 1       
+        
+        elif (varType == "float"):
+            global CGfloat
+            address = Gfloat[0] + CGfloat
+            if (address > Gfloat[1]):
+                print("Stack overflow of global floats for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CGfloat += 1
+
+        elif (varType == "string"):
+            global CGstring
+            address = Gstring[0] + CGstring
+            if (address > Gstring[1]):
+                print("Stack overflow of global strings for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CGstring += 1
+        
+        elif (varType == "char"):
+            global CGchar
+            address = Gchar[0] + CGchar
+            if (address > Gchar[1]):
+                print("Stack overflow of global chars for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CGchar += 1
+
+        elif (varType == "bool"):
+            global CGbool
+            address = Gbool[0] + CGbool
+            if (address > Gbool[1]):
+                print("Stack overflow of global bools for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CGbool += 1             
+
+### Funcion que determina el tipo de variable dependiendo de su direccion virtual ###
+def determineVarType(address):
+    if(((address >= 5000) and (address <= 5999))
+       or ((address >= 10000) and (address <= 10999))
+       or ((address >= 15000) and (address <= 15999))
+       or ((address >= 20000) and (address <= 20999))):
+        return "int"
+    elif(((address >= 6000) and (address <= 6999))
+       or ((address >= 11000) and (address <= 11999))
+       or ((address >= 16000) and (address <= 16999))
+       or ((address >= 21000) and (address <= 21999))):
+        return "float"
+    elif(((address >= 7000) and (address <= 7999))
+       or ((address >= 12000) and (address <= 12999))
+       or ((address >= 17000) and (address <= 17999))
+       or ((address >= 22000) and (address <= 22999))):
+        return "string"
+    elif(((address >= 8000) and (address <= 8999))
+       or ((address >= 13000) and (address <= 13999))
+       or ((address >= 18000) and (address <= 18999))
+       or ((address >= 23000) and (address <= 23999))):
+        return "char"
+    elif(((address >= 9000) and (address <= 9999))
+       or ((address >= 14000) and (address <= 14999))
+       or ((address >= 19000) and (address <= 19999))
+       or ((address >= 24000) and (address <= 24999))):
+        return "bool"
+
 parser = yacc()
 
-file = open("archivo.w", "r")
+file = open("prueba.w", "r")
 content = file.read()
 result = parser.parse(content)
 
-print(result)
+#print(FunctionTable.table["main"].varsTable.table["cosa1"].address)
+#print(QuadrupleList.list[0].toString())

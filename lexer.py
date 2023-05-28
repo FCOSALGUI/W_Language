@@ -1,5 +1,6 @@
 from ply.lex import lex
 
+### Tokens ###
 reserverd_words = {
     "var" : "VAR",
     "func": "FUNC",
