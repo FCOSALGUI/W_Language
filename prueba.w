@@ -1,10 +1,9 @@
-var int a, b, entero, entero1, entero_02;
-var float flotante;
-var float flotante__02;
-var string hello;
+var int A, B, C, D, G;
+var float E, F, K, H, J, L;
+var float resultado;
 
 main {
-    a = b * 10;
+    resultado = ((A + B) * C + D * E * F + K / H * J) + G * L + H + J;
 }
 
 end

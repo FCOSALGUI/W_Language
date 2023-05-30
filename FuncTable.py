@@ -21,9 +21,13 @@ class FuncTable:
     # Busca una variable en la tabla de variables de cada funcion
     # //TODO: Agregar funcionalidad para buscar en otros scopes (de forma local) para luego buscar en variables globales
     def searchVar(self, name, scope):
-        if(scope == "main"):
+        #functions = list(self.table.keys())
+        if scope in self.table:
             variable = self.table[scope].varsTable.searchVar(name)
             return variable.address
+        else:
+            print("Error: The provided scope" + scope + "to search for a variable is not declared")
+            exit()
 
 
 

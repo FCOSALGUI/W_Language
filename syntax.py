@@ -204,7 +204,7 @@ def p_statement(p):
 # ASSIGNMENT
 def p_assignment(p):
     '''
-    assignment : variable EQUAL exp SEMICOLON
+    assignment : variable np_push_id EQUAL np_push_operator_assignment exp np_pop_operator_assignment SEMICOLON
     '''
     p[0] = ('rule assignment: ', p[1], p[2], p[3], p[4])
 
@@ -416,13 +416,13 @@ def p_variable2(p):
 # EXP
 def p_exp(p):
     '''
-    exp : t_exp exp1
+    exp : g_exp np_pop_operator_boolean exp1
     '''
     p[0] = ('rule exp: ', p[1], p[2])
 
 def p_exp1(p):
     '''
-    exp1 : OR exp
+    exp1 : exp2 np_push_operator exp
          | empty
     '''
     if (len(p) == 3):
@@ -430,33 +430,23 @@ def p_exp1(p):
     else:
         p[0] = ('rule exp1: ', p[1])
 
-# T-EXP
-def p_t_exp(p):
+def p_exp2(p):
     '''
-    t_exp : g_exp t_exp1
+    exp2 : AND
+         | OR
     '''
-    p[0] = ('rule t_exp: ', p[1], p[2])
-
-def p_t_exp1(p):
-    '''
-    t_exp1 : AND t_exp
-           | empty
-    '''
-    if (len(p) == 3):
-        p[0] = ('rule t_exp1: ', p[1], p[2])
-    else:
-        p[0] = ('rule t_exp1: ', p[1])
+    p[0] = ('rule exp2: ', p[1])
 
 # G-EXP
 def p_g_exp(p):
     '''
-    g_exp : m_exp g_exp1
+    g_exp : m_exp np_pop_operator_c g_exp1
     '''
     p[0] = ('rule g_exp: ', p[1], p[2])
 
 def p_g_exp1(p):
     '''
-    g_exp1 : g_exp2 m_exp
+    g_exp1 : g_exp2 np_push_operator m_exp
            | empty
     '''
     if (len(p) == 3):
@@ -478,13 +468,13 @@ def p_g_exp2(p):
 # M-EXP
 def p_m_exp(p):
     '''
-    m_exp : t m_exp1
+    m_exp : t np_pop_operator_sr m_exp1
     ''' 
     p[0] = ('rule m_exp: ', p[1], p[2])
 
 def p_m_exp1(p):
     '''
-    m_exp1 : m_exp2 m_exp
+    m_exp1 : m_exp2 np_push_operator m_exp
            | empty
     '''
     if (len(p) == 3):
@@ -502,13 +492,13 @@ def p_m_exp2(p):
 # T
 def p_t(p):
     '''
-    t : f np_pop_operand_md t1
+    t : f np_pop_operator_md t1
     ''' 
     p[0] = ('rule t: ', p[1], p[2])
 
 def p_t1(p):
     '''
-    t1 : t2 np_push_operand_md t
+    t1 : t2 np_push_operator t
        | empty
     '''
     if (len(p) == 3):
@@ -526,7 +516,7 @@ def p_t2(p):
 # F
 def p_f(p):
     '''
-    f : LEFTPARENTHESIS np_create_temporal_operator_list exp np_delete_temporal_list RIGHTPARENTHESIS 
+    f : LEFTPARENTHESIS np_create_temporal_operator_separator exp RIGHTPARENTHESIS np_delete_temporal_separator
       | CTEINT np_add_constant_int
       | CTEFLOAT np_add_constant_float
       | CTECHAR np_add_constant_char
@@ -776,41 +766,114 @@ def p_np_add_constant_bool(p):
     typeStack.append("bool")
 
 ### Puntos neuralgicos para estatutos lineales ###
-def p_np_push_operand_md(p):
+def p_np_push_operator(p):
     '''
-    np_push_operand_md : empty
+    np_push_operator : empty
     '''
     operator = p[-1][1]
     operatorStack.append(operator)
 
-def p_np_pop_operand_md(p):
+def p_np_push_operator_assignment(p):
     '''
-    np_pop_operand_md : empty
+    np_push_operator_assignment : empty
     '''
-    # //TODO: Agregar funcionalidad para verificar el tope de la lista del ultimo elemento de los operadores, accesando lista de listas
-    rightOperand = operandsStack.pop()
+    operator = p[-1]
+    operatorStack.append(operator)
+
+def p_np_pop_operator_assignment(p):
+    '''
+    np_pop_operator_assignment : empty
+    '''
+    if(len(operatorStack) > 0):
+        if(operatorStack[-1] == "="):
+            assign()
+
+### Funcion que asigna un valor a una variable (crea el cuadrupo de asignacion) ###           
+def assign():
+    expAddress = operandsStack.pop()
+    expType = typeStack.pop()
+
+    resultAddress = operandsStack.pop()
+    resultType = typeStack.pop()
+
+    operator = operatorStack.pop()
+
+    if (expType == resultType):
+        QuadrupleList.addQuad(operator, expAddress, None, resultAddress)
+    else:
+        print("Type mismatch when assigning a value to a variable for address: " + str(resultAddress))
+        exit()
+
+def p_np_pop_operator_boolean(p):
+    '''
+    np_pop_operator_boolean : empty
+    '''
+    if(len(operatorStack) > 0):
+        if((operatorStack[-1] == "&&")
+           or (operatorStack[-1] == "||")):
+            pushTemporal()
+
+def p_np_pop_operator_md(p):
+    '''
+    np_pop_operator_md : empty
+    '''
+    if(len(operatorStack) > 0):
+        if((operatorStack[-1] == "*") or (operatorStack[-1] == "/")):
+            pushTemporal()
+
+def p_np_pop_operator_sr(p):
+    '''
+    np_pop_operator_sr : empty
+    '''
+    if(len(operatorStack) > 0):
+        if((operatorStack[-1] == "+") or (operatorStack[-1] == "-")):
+            pushTemporal()
+
+def p_np_pop_operator_c(p):
+    '''
+    np_pop_operator_c : empty
+    '''
+    if(len(operatorStack) > 0):
+        if((operatorStack[-1] == "<")
+           or (operatorStack[-1] == ">")
+           or (operatorStack[-1] == "<=")
+           or (operatorStack[-1] == ">=")
+           or (operatorStack[-1] == "==")
+           or (operatorStack[-1] == "!=")):
+            pushTemporal()
+
+### Funcion que calcula la direccion de un temporal, crea el cuadruplo y pushea la direccion temporal a la pila de operandos ###
+def pushTemporal():
+    rightAddress = operandsStack.pop()
     rightType = typeStack.pop()
 
-    leftOperand = operandsStack.pop()
+    leftAddress = operandsStack.pop()
     leftType = typeStack.pop()
 
     operator = operatorStack.pop()
 
     resultType = semanticCube.resultType(operator, leftType, rightType)
+    resultAdress = determineTempAdress(resultType)
 
-    # //TODO: Agregar funcionalidad para obtener la direccion de variables temporales para pushear a la pila de operandos como resultado
-    # result = *(lo que salga de la funcionalidad)
+    QuadrupleList.addQuad(operator, leftAddress, rightAddress, resultAdress)
+    operandsStack.append(resultAdress)
+    typeStack.append(resultType)
 
-    QuadrupleList.addQuad(operator, leftOperand, rightOperand, )
-
-def p_np_create_temporal_operator_list(p):
+### Puntos neuralgicos que crean un separador en la pila de operadores cuando se encuentra un paréntesis
+def p_np_create_temporal_operator_separator(p):
     '''
-    np_create_temporal_operator_list : empty
+    np_create_temporal_operator_separator : empty
     '''
-    temp = operatorStack
-    while(type(temp) == type([])):
-        if(len(temp) > 0):
-            return
+    operatorStack.append("s")
+    
+def p_np_delete_temporal_separator(p):
+    '''
+    np_delete_temporal_separator : empty
+    '''
+    if(operatorStack[-1] == "s"):
+        operatorStack.pop()
+
+
 
 ### Funcion para agregar variables a la tabla de variables ###
 # //TODO: Agregar funcionalidad para guardar variables locales luego de cambiar el scope a una funcion
@@ -895,11 +958,67 @@ def determineVarType(address):
        or ((address >= 24000) and (address <= 24999))):
         return "bool"
 
+### Funcion que calcula en que direccion sera agregada una temporal ###
+def determineTempAdress(resultType):
+    address = 0
+    if (resultType == "int"):
+        global CTint
+        address = Tint[0] + CTint
+        if (address > Tint[1]):
+            print("Stack overflow of temporal integers")
+            exit()
+        else:
+            CTint += 1
+            return address
+
+    elif (resultType == "float"):
+        global CTfloat
+        address = Tfloat[0] + CTfloat
+        if (address > Tfloat[1]):
+            print("Stack overflow of temporal floats")
+            exit()
+        else:
+            CTfloat += 1
+            return address
+        
+    elif (resultType == "string"):
+        global CTstring
+        address = Tstring[0] + CTstring
+        if (address > Tstring[1]):
+            print("Stack overflow of temporal strings")
+            exit()
+        else:
+            CTstring += 1
+            return address
+        
+    elif (resultType == "char"):
+        global CTchar
+        address = Tchar[0] + CTchar
+        if (address > Tchar[1]):
+            print("Stack overflow of temporal chars")
+            exit()
+        else:
+            CTchar += 1
+            return address
+        
+    elif (resultType == "bool"):
+        global CTbool
+        address = Tbool[0] + CTbool
+        if (address > Tbool[1]):
+            print("Stack overflow of temporal bools")
+            exit()
+        else:
+            CTbool += 1
+            return address
+
 parser = yacc()
 
 file = open("prueba.w", "r")
 content = file.read()
 result = parser.parse(content)
+
+for x in range(0,len(QuadrupleList.list)):
+    print(QuadrupleList.list[x].toString())
 
 #print(FunctionTable.table["main"].varsTable.table["cosa1"].address)
 #print(QuadrupleList.list[0].toString())
