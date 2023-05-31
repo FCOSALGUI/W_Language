@@ -228,13 +228,13 @@ def p_df_assignment1(p):
 # CONDITION
 def p_condition(p):
     '''
-    condition : IF LEFTPARENTHESIS exp RIGHTPARENTHESIS LEFTCURLYBRACE body RIGHTCURLYBRACE condition1
+    condition : IF LEFTPARENTHESIS exp RIGHTPARENTHESIS np_push_if LEFTCURLYBRACE body RIGHTCURLYBRACE condition1 np_conditional_end
     '''
     p[0] = ('rule condition: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8])
 
 def p_condition1(p):
     '''
-    condition1 : ELSE LEFTCURLYBRACE body RIGHTCURLYBRACE
+    condition1 : ELSE np_push_else LEFTCURLYBRACE body RIGHTCURLYBRACE
                | empty
     '''
     if (len(p) == 5):
@@ -245,28 +245,28 @@ def p_condition1(p):
 # W_CYCLE
 def p_w_cycle(p):
     '''
-    w_cycle : WHILE LEFTPARENTHESIS exp RIGHTPARENTHESIS LEFTCURLYBRACE body RIGHTCURLYBRACE
+    w_cycle : WHILE np_push_while LEFTPARENTHESIS exp RIGHTPARENTHESIS np_while_exp LEFTCURLYBRACE body RIGHTCURLYBRACE np_while_end
     '''
     p[0] = ('rule w_cycle: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7])
 
 # F_CYCLE
 def p_f_cycle(p):
     '''
-    f_cycle : LEFTPARENTHESIS FOR ID EQUAL exp SEMICOLON exp RIGHTPARENTHESIS LEFTCURLYBRACE body RIGHTCURLYBRACE
+    f_cycle : FOR LEFTPARENTHESIS assignment np_push_for exp SEMICOLON exp RIGHTPARENTHESIS np_check_for LEFTCURLYBRACE body RIGHTCURLYBRACE np_for_end
     '''
     p[0] = ('rule f_cycle: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11])
 
 # READ
 def p_read(p):
     '''
-    read : READ LEFTPARENTHESIS variable RIGHTPARENTHESIS SEMICOLON
+    read : READ np_push_rw LEFTPARENTHESIS variable np_push_id RIGHTPARENTHESIS SEMICOLON np_pop_rw
     '''
     p[0] = ('rule read: ', p[1], p[2], p[3], p[4], p[5])
 
 # WRITE
 def p_write(p):
     '''
-    write : WRITE LEFTPARENTHESIS exp RIGHTPARENTHESIS SEMICOLON
+    write : WRITE np_push_rw LEFTPARENTHESIS exp RIGHTPARENTHESIS SEMICOLON np_pop_rw
     '''
     p[0] = ('rule write: ', p[1], p[2], p[3], p[4], p[5])
 
@@ -416,13 +416,13 @@ def p_variable2(p):
 # EXP
 def p_exp(p):
     '''
-    exp : g_exp np_pop_operator_boolean exp1
+    exp : g_exp exp1
     '''
     p[0] = ('rule exp: ', p[1], p[2])
 
 def p_exp1(p):
     '''
-    exp1 : exp2 np_push_operator exp
+    exp1 : exp2 np_push_operator g_exp np_pop_operator_boolean
          | empty
     '''
     if (len(p) == 3):
@@ -440,13 +440,13 @@ def p_exp2(p):
 # G-EXP
 def p_g_exp(p):
     '''
-    g_exp : m_exp np_pop_operator_c g_exp1
+    g_exp : m_exp g_exp1
     '''
     p[0] = ('rule g_exp: ', p[1], p[2])
 
 def p_g_exp1(p):
     '''
-    g_exp1 : g_exp2 np_push_operator m_exp
+    g_exp1 : g_exp2 np_push_operator m_exp np_pop_operator_c
            | empty
     '''
     if (len(p) == 3):
@@ -873,8 +873,6 @@ def p_np_delete_temporal_separator(p):
     if(operatorStack[-1] == "s"):
         operatorStack.pop()
 
-
-
 ### Funcion para agregar variables a la tabla de variables ###
 # //TODO: Agregar funcionalidad para guardar variables locales luego de cambiar el scope a una funcion
 def addVariable(varType, name):
@@ -929,6 +927,122 @@ def addVariable(varType, name):
             else:
                 FunctionTable.table[scope].varsTable.addVar(name, address)
                 CGbool += 1             
+
+### Puntos Neuralgicos if y else ###
+def p_np_push_if(p):
+    '''
+    np_push_if : empty
+    '''
+    expType = typeStack.pop()
+    if (expType != "bool"):
+        print("Type mismatch at if evaluation, it is not a boolean")
+        exit()
+    else:
+        result = operandsStack.pop()
+        QuadrupleList.addQuad("gotof", result, None, None)
+        jumpStack.append(len(QuadrupleList.list) - 1)
+
+def p_np_push_else(p):
+    '''
+    np_push_else : empty
+    '''
+    QuadrupleList.addQuad("goto", None, None, None)
+    falseJump = jumpStack.pop()
+    jumpStack.append(len(QuadrupleList.list) - 1)
+    QuadrupleList.editQuadGoto(falseJump, len(QuadrupleList.list))
+
+def p_np_conditional_end(p):
+    '''
+    np_conditional_end : empty
+    '''
+    endJump = jumpStack.pop()
+    QuadrupleList.editQuadGoto(endJump, len(QuadrupleList.list))
+
+### Puntos neuralgicos while ###
+def p_np_push_while(p):
+    '''
+    np_push_while : empty
+    '''
+    jumpStack.append(len(QuadrupleList.list))
+
+def p_np_while_exp(p):
+    '''
+    np_while_exp : empty
+    '''
+    expType = typeStack.pop()
+    if (expType != "bool"):
+        print("Type mismatch at while evaluation, it is not a boolean")
+        exit()
+    else:
+        result = operandsStack.pop()
+        QuadrupleList.addQuad("gotof", result, None, None)
+        jumpStack.append(len(QuadrupleList.list) - 1)
+
+def p_np_while_end(p):
+    '''
+    np_while_end : empty
+    '''
+    endJump = jumpStack.pop()
+    returnJump = jumpStack.pop()
+    QuadrupleList.addQuad("goto", None, None, returnJump)
+    QuadrupleList.editQuadGoto(endJump, len(QuadrupleList.list))
+
+### Puntos neuralgicos for ###
+#TODO: Hacer puntos neuralgicos para el FOR
+
+# El que suma, resta o multiplica
+def p_np_push_for(p):
+    '''
+    np_push_for : empty
+    '''
+    jumpStack.append(len(QuadrupleList.list))
+
+def p_np_check_for(p):
+    '''
+    np_check_for : empty
+    '''
+    expTypeBoolean = typeStack.pop()
+    if (expTypeBoolean != "bool"):
+        print("Type mismatch at for boolean component, it is not boolean")
+        exit()
+    else:
+        expTypeInteger = typeStack.pop()
+        if (expTypeInteger != "int"):
+            print("Type mismatch at for integer component, it is not integer")
+            exit()
+        else:
+            resultBoolean = operandsStack.pop()
+            QuadrupleList.addQuad("gotof", resultBoolean, None, None)
+            jumpStack.append(len(QuadrupleList.list) - 1)
+            operandsStack.pop()
+
+def p_np_for_end(p):
+    '''
+    np_for_end : empty
+    '''
+    falseJump = jumpStack.pop()
+    returnJump = jumpStack.pop()
+
+    QuadrupleList.addQuad("goto", None, None, returnJump)
+    QuadrupleList.editQuadGoto(falseJump, len(QuadrupleList.list))
+
+### Puntos neuralgicos read y write ###
+def p_np_push_rw(p):
+    '''
+    np_push_rw : empty
+    '''
+    operator = p[-1]
+    operatorStack.append(operator)
+
+def p_np_pop_rw(p):
+    '''
+    np_pop_rw : empty
+    '''
+    operator = operatorStack.pop()
+    typeStack.pop()
+    result = operandsStack.pop()
+
+    QuadrupleList.addQuad(operator, None, None, result)
 
 ### Funcion que determina el tipo de variable dependiendo de su direccion virtual ###
 def determineVarType(address):
@@ -1017,8 +1131,15 @@ file = open("prueba.w", "r")
 content = file.read()
 result = parser.parse(content)
 
-for x in range(0,len(QuadrupleList.list)):
-    print(QuadrupleList.list[x].toString())
+'''for x in range(0,len(QuadrupleList.list)):
+    print(str(x) + ".- " + QuadrupleList.list[x].toString())
+
+print(operatorStack)
+print(operandsStack)
+print(typeStack)
+print(jumpStack)
+
+print(len(QuadrupleList.list))'''
 
 #print(FunctionTable.table["main"].varsTable.table["cosa1"].address)
 #print(QuadrupleList.list[0].toString())
