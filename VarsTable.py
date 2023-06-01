@@ -27,11 +27,25 @@ class VarsTable:
         if name not in self.table:
             self.table[name] = newVar
         
-    def searchVar(self, name):
-        if name in self.table:
-            return self.table[name]
-            
+    def searchVar(self, name, scope):
+        if (scope == "main"):
+            if name in self.table:
+                return self.table[name]
+                
+            else:
+                print("Variable " + name + " has not been declared")
+                exit()
+        
         else:
-            print("Variable " + name + " has not been declared")
-            exit()
-            return None
+            if name in self.table:
+                return self.table[name]
+            else:
+                return -1
+    
+    ### Funcion que regresa una lista de constantes en formato string para ser escritas en el archivo obj ###
+    def getConstants(self):
+        result = []
+        for var in self.table:
+            result.append(f'{self.table[var].address} : {var}')
+
+        return result

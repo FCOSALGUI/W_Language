@@ -1,25 +1,15 @@
-var float A, B, C, D, E, F, G, H, I, J, K;
+func void funcion(int a, float b) {
+}
+
+func int entero(int a, int b, float c, int z, int j)
+var int resultado;
+{
+    resultado = a * b;
+    return resultado;
+}
 
 main {
-    A = B + C * (D - E / F) * H;
-    B = E - F;
-    while (A * B - C >= D * E / (G + H)) {
-        H = J * K + B;
-        if (B < H){
-            B = H + J;
-            while (B > A + C){
-                write(A + B * C + D - E);
-                B = B - J; 
-            }
-        }
-        else{
-            while(A - D < C + B){
-                A = A + B;
-                write(B - D);
-            }
-        }
-    }
-    F = A + B;
+    entero(8,10, 15.5, 1, 2);
 }
 
 end

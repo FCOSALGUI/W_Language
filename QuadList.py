@@ -60,7 +60,28 @@ class QuadList:
         
         elif operator == "write":
             return 16
-    
+        
+        elif operator == "return":
+            return 17
+
+        elif operator == "endfunc":
+            return 18
+        
+        elif operator == "era":
+            return 19
+        
+        elif operator == "parameter":
+            return 20
+        
+        elif operator == "gosub":
+            return 21
+
+        elif operator == "ver":
+            return 22
+        
+        elif operator == "end":
+            return 23
+        
     # Funcion que completa el cuadruplo de Goto cuando sabe a que direccion ir
     def editQuadGoto(self, address, jumpTo):
         self.list[address].result = jumpTo

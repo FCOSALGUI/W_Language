@@ -2,6 +2,7 @@ from ply.yacc import yacc
 from lexer import *
 from FuncTable import FuncTable
 from Func import Func
+from FuncSize import FuncSize
 from VarsTable import VarsTable
 from Var import Var
 
@@ -13,7 +14,7 @@ from Semantics import Semantics
 # PROGRAM
 def p_program(p):
     '''
-    program : np_create_mainFunc np_set_scope_main var_dec df_dec modules MAIN np_set_goto_main LEFTCURLYBRACE body RIGHTCURLYBRACE END
+    program : np_create_mainFunc np_set_scope_main var_dec df_dec modules MAIN np_set_goto_main np_reset_counters LEFTCURLYBRACE body RIGHTCURLYBRACE END np_end_program
             | empty
     '''
     if (len(p) == 9):
@@ -118,7 +119,7 @@ def p_modules(p):
 
 def p_modules1(p):
     '''
-    modules1 : FUNC modules2 ID LEFTPARENTHESIS modules3 RIGHTPARENTHESIS LEFTCURLYBRACE var_dec body modules4 RIGHTCURLYBRACE
+    modules1 : FUNC modules2 ID np_create_module np_set_scope_module LEFTPARENTHESIS modules3 RIGHTPARENTHESIS var_dec LEFTCURLYBRACE body modules4 RIGHTCURLYBRACE np_end_module np_reset_counters
              | empty
     '''
     if (len(p) == 12):
@@ -135,7 +136,7 @@ def p_modules2(p):
 
 def p_modules3(p):
     '''
-    modules3 : type ID modules5
+    modules3 : type ID np_add_parameter modules5
              | empty
     '''
     if (len(p) == 4):
@@ -145,7 +146,7 @@ def p_modules3(p):
 
 def p_modules4(p):
     '''
-    modules4 : RETURN exp SEMICOLON
+    modules4 : RETURN exp SEMICOLON np_create_return
              | empty
     '''
     if (len(p) == 4):
@@ -155,7 +156,7 @@ def p_modules4(p):
 
 def p_modules5(p):
     '''
-    modules5 : COMMA type ID modules5
+    modules5 : COMMA type ID np_add_parameter modules5
              | empty
     '''
     if (len(p) == 5):
@@ -273,8 +274,8 @@ def p_write(p):
 # CALL
 def p_call(p):
     '''
-    call : ID LEFTPARENTHESIS call1 RIGHTPARENTHESIS
-         | ID LEFTPARENTHESIS call1 RIGHTPARENTHESIS SEMICOLON 
+    call : ID np_verify_call LEFTPARENTHESIS np_generate_era call1 RIGHTPARENTHESIS np_end_call
+         | ID np_verify_call LEFTPARENTHESIS np_generate_era call1 RIGHTPARENTHESIS np_end_call SEMICOLON 
     '''
     if (len(p) == 4):
         p[0] = ('rule call: ', p[1], p[2], p[3])
@@ -283,7 +284,7 @@ def p_call(p):
 
 def p_call1(p):
     '''
-    call1 : exp call2
+    call1 : exp np_push_parameter call2
           | empty
     '''
     if (len(p) == 3):
@@ -293,7 +294,7 @@ def p_call1(p):
 
 def p_call2(p):
     '''
-    call2 : COMMA exp call2
+    call2 : COMMA exp np_push_parameter call2
           | empty
     '''
     if (len(p) == 4):
@@ -634,6 +635,180 @@ def p_np_create_mainFunc(p):
     jumpStack.append(0)
     QuadrupleList.addQuad("goto", None, None, None)
 
+### Puntos neuralgicos para funciones ###
+def p_np_create_module(p):
+    '''
+    np_create_module : empty
+    '''
+    vTable = VarsTable()
+    if (p[-2][1] == "void"):
+        funcType = p[-2][1]
+    else:
+        funcType = p[-2][1][1]
+    
+    funcName = p[-1]
+    address = len(QuadrupleList.list)
+    
+    FunctionTable.addFunc(funcName, funcType, [], None, vTable, address)
+    
+def p_np_set_scope_module(p):
+    '''
+    np_set_scope_module : empty
+    '''
+    global scope
+    scope = p[-2]
+
+def p_np_add_parameter(p):
+    '''
+    np_add_parameter : empty
+    '''
+    global varType
+    varType = p[-2][1]
+    name = p[-1]
+    addVariable(varType, name)
+    FunctionTable.addParameter(name, scope)
+
+def p_np_reset_counters(p):
+    '''
+    np_reset_counters : empty
+    '''
+    global CLint
+    CLint = 0
+    global CLfloat
+    CLfloat = 0
+    global CLstring
+    CLstring = 0
+    global CLchar
+    CLchar = 0
+    global CLbool
+    CLbool = 0
+    global CTint
+    CTint = 0
+    global CTfloat
+    CTfloat = 0
+    global CTstring
+    CTstring = 0
+    global CTchar
+    CTchar = 0
+    global CTbool
+    CTbool = 0
+
+def p_np_create_return(p):
+    '''
+    np_create_return : empty
+    '''
+    operandType = typeStack.pop()
+    operand = operandsStack.pop()
+
+    funcType = FunctionTable.getFuncType(scope)
+    if (funcType == "void"):
+        print("Error: The void function " + scope + " has a return expression")
+        exit()
+    else:
+        if (funcType == operandType):
+            QuadrupleList.addQuad("return", operand, None, FunctionTable.table[scope].startAddress)
+        else:
+            print("Error: Return expression for function" + scope + " is not the same as the function type")
+            exit()
+
+def p_np_end_module(p):
+    '''
+    np_end_module : empty
+    '''
+    quad = QuadrupleList.list[len(QuadrupleList.list) - 1]
+    funcType = FunctionTable.getFuncType(scope)
+    if ((funcType == "void")):
+        if (quad.operator != 17):
+            size = FuncSize(CLint, CLfloat, CLstring, CLchar, CLbool, CTint, CTfloat, CTstring, CTchar, CTbool)
+            FunctionTable.addFuncSize(scope, size)
+            QuadrupleList.addQuad("endfunc", None, None, None)
+        else: 
+            print("Error: The void function " + scope + " has a return expression")
+            exit()
+    else:
+        if(quad.operator == 17):
+            size = FuncSize(CLint, CLfloat, CLstring, CLchar, CLbool, CTint, CTfloat, CTstring, CTchar, CTbool)
+            FunctionTable.addFuncSize(scope, size)
+            QuadrupleList.addQuad("endfunc", None, None, None)
+        else:
+            print("Error: Return expression for function " + scope + " is not declared")
+            exit()
+
+### Puntos neuralgicos de las llamadas a funciones ###
+parameterCounter = 0
+def p_np_verify_call(p):
+    '''
+    np_verify_call : empty
+    '''
+    name = p[-1]
+    if name not in FunctionTable.table:
+        print("Error: Function ID with name" + name + "not declared")
+        exit()
+    
+def p_np_generate_era(p):
+    '''
+    np_generate_era : empty
+    '''
+    global parameterCounter
+    parameterCounter = 0
+    funcName = p[-3]
+    startAddress = FunctionTable.table[funcName].startAddress
+
+    QuadrupleList.addQuad("era", None, None, startAddress)
+
+def p_np_push_parameter(p):
+    '''
+    np_push_parameter : empty
+    '''
+    global parameterCounter
+
+    if (len(operandsStack) > 0):
+        operandType = typeStack.pop()
+        operand = operandsStack.pop()
+        funcName = p[-5 - (3 * parameterCounter)]
+        parameterSize = len(FunctionTable.table[funcName].parameters)
+
+        if (parameterCounter < parameterSize):
+            parameterName = FunctionTable.table[funcName].parameters[parameterCounter]
+            parameterAddress = FunctionTable.searchParameter(parameterName, funcName)
+            parameterType = determineVarType(parameterAddress)
+
+            if (parameterType == operandType):
+                QuadrupleList.addQuad("parameter", operand, None, parameterAddress)
+                parameterCounter += 1
+            
+            else:
+                print("Error: Type of argument sent to parameter of function " + funcName + " doesn't coincide")
+                exit()
+
+        else:
+            print("Error: Tried to send more parameters to function " + funcName + " than it accepts")
+            exit()
+    else:
+        print("Error: Tried to retrieve expression to add to parameter but the operand stack is empty")
+        exit()
+
+def p_np_end_call(p):
+    '''
+    np_end_call : empty
+    '''
+    global parameterCounter
+    funcName = p[-6]
+    funcType = FunctionTable.table[funcName].type
+    size = len(FunctionTable.table[funcName].parameters)
+    startAddress = FunctionTable.table[funcName].startAddress
+    if(parameterCounter != size):
+        print("Error: Parameters sent to function " + funcName + " does not coincide with the number that it accepts")
+        exit()
+    
+    else:
+        QuadrupleList.addQuad("gosub", None, None, startAddress)
+        if (funcType != "void"):
+            returnAddress = determineTempAdress(funcType)
+            QuadrupleList.addQuad("=", startAddress, None, returnAddress)
+            operandsStack.append(returnAddress)
+            typeStack.append(funcType)
+
 ### Guardar variables ###
 def p_np_add_variable(p):
     '''
@@ -689,7 +864,7 @@ def p_np_add_constant_int(p):
         Constants.addConstant(name, address)
         CCint += 1
     
-    operand = Constants.searchVar(name)
+    operand = Constants.searchVar(name, "main")
     operandsStack.append(operand.address)
     typeStack.append("int")
 
@@ -707,7 +882,7 @@ def p_np_add_constant_float(p):
         Constants.addConstant(name, address)
         CCfloat += 1
 
-    operand = Constants.searchVar(name)
+    operand = Constants.searchVar(name, "main")
     operandsStack.append(operand.address)
     typeStack.append("float")
 
@@ -725,7 +900,7 @@ def p_np_add_constant_char(p):
         Constants.addConstant(name, address)
         CCchar += 1
 
-    operand = Constants.searchVar(name)
+    operand = Constants.searchVar(name, "main")
     operandsStack.append(operand.address)
     typeStack.append("char")
 
@@ -743,7 +918,7 @@ def p_np_add_constant_string(p):
         Constants.addConstant(name, address)
         CCstring += 1
 
-    operand = Constants.searchVar(name)
+    operand = Constants.searchVar(name, "main")
     operandsStack.append(operand.address)
     typeStack.append("string")
 
@@ -761,7 +936,7 @@ def p_np_add_constant_bool(p):
         Constants.addConstant(name, address)
         CCbool += 1
 
-    operand = Constants.searchVar(name)
+    operand = Constants.searchVar(name, "main")
     operandsStack.append(operand.address)
     typeStack.append("bool")
 
@@ -874,7 +1049,6 @@ def p_np_delete_temporal_separator(p):
         operatorStack.pop()
 
 ### Funcion para agregar variables a la tabla de variables ###
-# //TODO: Agregar funcionalidad para guardar variables locales luego de cambiar el scope a una funcion
 def addVariable(varType, name):
     address = 0
     if(scope == "main"):
@@ -926,7 +1100,57 @@ def addVariable(varType, name):
                 exit()
             else:
                 FunctionTable.table[scope].varsTable.addVar(name, address)
-                CGbool += 1             
+                CGbool += 1  
+    else:
+        if (varType == "int"):
+            global CLint
+            address = Lint[0] + CLint
+            if (address > Lint[1]):
+                print("Stack overflow of local integers for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CLint += 1       
+        
+        elif (varType == "float"):
+            global CLfloat
+            address = Lfloat[0] + CLfloat
+            if (address > Lfloat[1]):
+                print("Stack overflow of local floats for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CLfloat += 1
+
+        elif (varType == "string"):
+            global CLstring
+            address = Lstring[0] + CLstring
+            if (address > Lstring[1]):
+                print("Stack overflow of local strings for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CLstring += 1
+        
+        elif (varType == "char"):
+            global CLchar
+            address = Lchar[0] + CLchar
+            if (address > Lchar[1]):
+                print("Stack overflow of local chars for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CLchar += 1
+
+        elif (varType == "bool"):
+            global CLbool
+            address = Lbool[0] + CLbool
+            if (address > Lbool[1]):
+                print("Stack overflow of local bools for variable " + name)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addVar(name, address)
+                CLbool += 1
 
 ### Puntos Neuralgicos if y else ###
 def p_np_push_if(p):
@@ -988,8 +1212,6 @@ def p_np_while_end(p):
     QuadrupleList.editQuadGoto(endJump, len(QuadrupleList.list))
 
 ### Puntos neuralgicos for ###
-#TODO: Hacer puntos neuralgicos para el FOR
-
 # El que suma, resta o multiplica
 def p_np_push_for(p):
     '''
@@ -1125,21 +1347,35 @@ def determineTempAdress(resultType):
             CTbool += 1
             return address
 
+### Puntos neuralgicos para terminar el programa (END) ###
+def p_np_end_program(p):
+    '''
+    np_end_program : empty
+    '''
+    QuadrupleList.addQuad("end", None, None, None)
+
 parser = yacc()
 
 file = open("prueba.w", "r")
 content = file.read()
 result = parser.parse(content)
 
-'''for x in range(0,len(QuadrupleList.list)):
-    print(str(x) + ".- " + QuadrupleList.list[x].toString())
+file.close()
 
-print(operatorStack)
-print(operandsStack)
-print(typeStack)
-print(jumpStack)
+### Inicio del proceso para crear el codigo objeto ###
+objFile = open("obj.a", "w")
 
-print(len(QuadrupleList.list))'''
+constantsList = Constants.getConstants()
+functionList = FunctionTable.getAllFunc()
 
-#print(FunctionTable.table["main"].varsTable.table["cosa1"].address)
-#print(QuadrupleList.list[0].toString())
+for constant in constantsList:
+    objFile.write(f'{str(constant)} | ')
+objFile.write("%% \n")
+
+for function in functionList:
+    objFile.write(f'{str(function)} | ')
+objFile.write("%% \n")
+
+for x in range(0,len(QuadrupleList.list)):
+    objFile.write(QuadrupleList.list[x].toString() + "\n")
+objFile.write("%%")

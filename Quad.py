@@ -13,6 +13,10 @@ class Quad:
         else:
             self.rOperand = rOperand
         self.result = result
+        if (result == None):
+            self.result = ""
+        else:
+            self.result = result
     
     def toString(self):
         Quadruple = f"{self.operator},{self.lOperand},{self.rOperand},{self.result}"
