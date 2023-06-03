@@ -38,15 +38,9 @@ tokens = ["ID", "CTEINT", "CTEFLOAT", "CTECHAR", "CTESTRING", "AND", "OR", "LT",
           "LEFTBRACKET", "RIGHTBRACKET", "LEFTPARENTHESIS", "RIGHTPARENTHESIS", "LEFTCURLYBRACE", "RIGHTCURLYBRACE",
            "SEMICOLON", "COMMA", "PLUS", "MINUS", "MULTIPLICATION", "DIVISION", "EQUAL", "DOT" ] + list(reserverd_words.values())
 
-literals = "[](){};,+-*/=."
+literals = "[](){};,+-*/."
 
 t_ignore = ' \t'
-
-"""def t_COMMENT(t):
-    r'\#([^\#\n]|(\#(.|\n)))*?'
-    t.type = reserverd_words.get(t.value, "COMMENT")
-    return t
-"""
 
 t_AND = r'\&\&'
 t_OR = r'\|\|'
@@ -54,7 +48,7 @@ t_LT = r'\<'
 t_GT = r'\>'
 t_LTOE = r'\<\='
 t_GTOE = r'\>\='
-t_E = r'\=\='
+t_E = r'\#\='
 t_NE = r'\!\='
 
 def t_LEFTBRACKET(t):

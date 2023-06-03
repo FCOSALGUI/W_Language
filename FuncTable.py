@@ -20,7 +20,7 @@ class FuncTable:
         self.table[name].startAddress = address
 
     # Busca una variable en la tabla de variables de cada funcion
-    def searchVar(self, name, scope):
+    def getVarAddress(self, name, scope):
         if scope in self.table:
             variable = self.table[scope].varsTable.searchVar(name, scope)
             if (variable == -1):
@@ -28,6 +28,30 @@ class FuncTable:
                 return variable.address
             else:
                 return variable.address
+        else:
+            print("Scope " + scope + " not declared")
+            exit()
+
+    def getArrayDimension(self, name, scope):
+        if scope in self.table:
+            variable = self.table[scope].varsTable.searchVar(name, scope)
+            if (variable == -1):
+                variable = self.table["main"].varsTable.searchVar(name, "main")
+                return variable.dim1
+            else:
+                return variable.dim1
+        else:
+            print("Scope " + scope + " not declared")
+            exit()
+
+    def getMatrixDimension(self, name, scope):
+        if scope in self.table:
+            variable = self.table[scope].varsTable.searchVar(name, scope)
+            if (variable == -1):
+                variable = self.table["main"].varsTable.searchVar(name, "main")
+                return variable.dim2
+            else:
+                return variable.dim2
         else:
             print("Scope " + scope + " not declared")
             exit()

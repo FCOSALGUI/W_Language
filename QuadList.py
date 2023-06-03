@@ -25,7 +25,7 @@ class QuadList:
         elif operator == ">=":
             return 4
         
-        elif operator == "==":
+        elif operator == "#=":
             return 5
         
         elif operator == "!=":
@@ -81,6 +81,12 @@ class QuadList:
         
         elif operator == "end":
             return 23
+        
+        elif operator == "+dirb":
+            return 24
+        else:
+            print("Operator not recognized: " + operator)
+            exit()
         
     # Funcion que completa el cuadruplo de Goto cuando sabe a que direccion ir
     def editQuadGoto(self, address, jumpTo):

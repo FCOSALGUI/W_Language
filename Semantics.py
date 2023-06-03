@@ -15,7 +15,7 @@ class Semantics:
                     '<=': 'bool',
                     '>=': 'bool',
                     '=' : 'int',
-                    '==': 'bool',
+                    '#=': 'bool',
                     '!=': 'bool'
                 },
                 'float': {
@@ -44,7 +44,7 @@ class Semantics:
                     '<=': 'bool',
                     '>=': 'bool',
                     '=' : 'float',
-                    '==' : 'bool',
+                    '#=' : 'bool',
                     '!=': 'bool'
                   },
                   'int': {
@@ -65,14 +65,14 @@ class Semantics:
             'string':{
                 'string': {
                     '=' :  'string',
-                    '==' : 'bool',
+                    '#=' : 'bool',
                     '!=' : 'bool'
                 }
             },
             'char':{
                 'char': {
                     '=' :  'char',
-                    '==' : 'bool',
+                    '#=' : 'bool',
                     '!=' : 'bool'
                 }
             },

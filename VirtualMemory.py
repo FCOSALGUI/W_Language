@@ -6,8 +6,10 @@ class VirtualMemory:
         self.functions = {}
         self.quadruples = []
         self.memoryStack = []
+        self.counters = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.eraTemporary = {}
 
-    def setValue(self, address, value):
+    def setValue(self, address:str, value:str):
         if (len(self.memoryStack) > 0):
             scope = self.determineScope(int(address))
             if (scope == "local"):
@@ -17,7 +19,8 @@ class VirtualMemory:
         else:
             self.variables[address] = value
 
-    def getValue(self, address):
+
+    def getValue(self, address:str):
         if address != '':
             if (len(self.memoryStack) > 0):
                 scope = self.determineScope(int(address))
@@ -30,13 +33,21 @@ class VirtualMemory:
                             return int(value)
                         elif(valueType == "float"):
                             return float(value)
+                        elif(valueType == "string"):
+                            return str(value)
+                        elif(valueType == "char"):
+                            return str(value)
+                        elif(valueType == "pointer"):
+                            return self.getValue(value)
                         elif(valueType == "bool"):
                             if(value.lower() == "true"):
                                 return True
                             elif(value.lower() == "false"):
-                                return False            
+                                return False
+                        else:
+                            return value         
                     else:
-                        print(f'Address {address} does not have a value assigned to it \n Make sure all variables have values assigned to them in your code!')
+                        print(f'Local address {address} does not have a value assigned to it \n Make sure all variables have values assigned to them in your code!')
                         exit()
 
                 elif (scope == "global"):
@@ -48,13 +59,21 @@ class VirtualMemory:
                             return int(value)
                         elif(valueType == "float"):
                             return float(value)
+                        elif(valueType == "string"):
+                            return str(value)
+                        elif(valueType == "char"):
+                            return str(value)
+                        elif(valueType == "pointer"):
+                            return self.getValue(value)
                         elif(valueType == "bool"):
                             if(value.lower() == "true"):
                                 return True
                             elif(value.lower() == "false"):
-                                return False            
+                                return False 
+                        else:
+                            return value           
                     else:
-                        print(f'Address {address} does not have a value assigned to it \n Make sure all variables have values assigned to them in your code!')
+                        print(f'Global address {address} does not have a value assigned to it \n Make sure all variables have values assigned to them in your code!')
                         exit()
             else:    
                 if address in self.variables:
@@ -65,24 +84,32 @@ class VirtualMemory:
                         return int(value)
                     elif(valueType == "float"):
                         return float(value)
+                    elif(valueType == "string"):
+                        return value
+                    elif(valueType == "char"):
+                        return value
+                    elif(valueType == "pointer"):
+                        return self.getValue(value)
                     elif(valueType == "bool"):
                         if(value.lower() == "true"):
                             return True
                         elif(value.lower() == "false"):
-                            return False            
+                            return False    
+                    else:
+                        return value        
                 else:
-                    print(f'Address {address} does not have a value assigned to it \n Make sure all variables have values assigned to them in your code!')
+                    print(f'Address {address} does not have a value assigned to it\nMake sure all variables have values assigned to them in your code!')
                     exit()
         else:
             return ''
 
-    def setFunction(self, address, values:list):
+    def setFunction(self, address:str, values:list):
         self.functions[address] = values
 
     def setQuadruple(self, quadruple:list):
         self.quadruples.append(quadruple)
 
-    def operatorTranslator(self, operator):
+    def operatorTranslator(self, operator:str):
         if operator == "1":
             return "<"
         elif operator == "2":
@@ -92,7 +119,7 @@ class VirtualMemory:
         elif operator == "4":
             return ">="
         elif operator == "5":
-            return "=="
+            return "#="
         elif operator == "6":
             return "!="
         elif operator == "7":
@@ -129,6 +156,11 @@ class VirtualMemory:
             return "ver"
         elif operator == "23":
             return "end"
+        elif operator == "24":
+            return "+dirb"
+        else:
+            print("Operator not recognized: " + operator)
+            exit()
         
     @staticmethod
     def determineVarType(address:int):
@@ -157,6 +189,8 @@ class VirtualMemory:
         or ((address >= 19000) and (address <= 19999))
         or ((address >= 24000) and (address <= 24999))):
             return "bool"
+        elif(address >= 25000):
+            return "pointer"
         
     @staticmethod
     def determineScope(address:int):

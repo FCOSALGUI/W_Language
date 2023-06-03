@@ -1,5 +1,6 @@
 ### Máquina Virtual que ejecuta el código objeto ###
 from VirtualMemory import VirtualMemory
+import re
 
 obj = open("obj.a", "r")
 text = obj.read().split()
@@ -9,10 +10,19 @@ counter = 0
 while(text[counter] != "%%"):
     address = text[counter]
     counter += 2
-    value = text[counter]
-    memory.setValue(address, value)
-    counter +=2
+    if (text[counter] == f'"'):
+        value = ""
+        counter += 1
+        while(text[counter] != f'"'):
+            value += text[counter] + " "
+            counter += 1
 
+        memory.setValue(address, value)
+        counter +=2
+    else:
+        value = text[counter]
+        memory.setValue(address, value)
+        counter +=2
 counter += 1
 # Se encarga de guardar las funciones
 while(text[counter] != "%%"):
@@ -33,7 +43,9 @@ while(text[counter] != "%%"):
 # Instruction pointer
 ip = 0
 ipStack = []
+function = ""
 while(memory.quadruples[ip][0] != "23"):
+    #print("Instruction pointer : " + str(ip))
     operator = memory.operatorTranslator(memory.quadruples[ip][0])
     leftO = memory.getValue(memory.quadruples[ip][1])
     rightO = memory.getValue(memory.quadruples[ip][2])
@@ -41,68 +53,111 @@ while(memory.quadruples[ip][0] != "23"):
 
     if operator == "<":
         memory.setValue(result, str(leftO < rightO))
+        ip += 1
 
     elif operator == ">":
         memory.setValue(result, str(leftO > rightO))
+        ip += 1
 
     elif operator == "<=":
         memory.setValue(result, str(leftO <= rightO))
+        ip += 1
 
     elif operator == ">=":
         memory.setValue(result, str(leftO >= rightO))
+        ip += 1
 
-    elif operator == "==":
+    elif operator == "#=":
         memory.setValue(result, str(leftO == rightO))
+        ip += 1
 
     elif operator == "!=":
         memory.setValue(result, str(leftO != rightO))
+        ip += 1
 
     elif operator == "+":
         memory.setValue(result, str(leftO + rightO))
+        ip += 1
     
     elif operator == "-":
         memory.setValue(result, str(leftO - rightO))
+        ip += 1
 
     elif operator == "/":
         memory.setValue(result, str(leftO / rightO))
+        ip += 1
 
     elif operator == "*":
         memory.setValue(result, str(leftO * rightO))
+        ip += 1
 
     elif operator == "=":
-        memory.setValue(result, leftO)
+        memory.setValue(result, str(leftO))
+        ip += 1
 
     elif operator == "goto":
-        ip = result
+        ip = int(result)
     
     elif operator == "gotof":
         if not leftO:
-            ip = result
+            ip = int(result)
+        else:
+            ip += 1
     
     elif operator == "gotov":
         if leftO:
-            ip = result
+            ip = int(result)
+        else:
+            ip += 1
 
     elif operator == "read":
         temp = input()
         memory.setValue(result, temp)
+        ip += 1
 
     elif operator == "write":
-        print(result)
+        print(memory.getValue(result), end="")
+        ip += 1
 
     elif operator == "return":
-        memory.setValue(result, leftO)
+        memory.setValue(result, str(leftO))
+        #print(result)
+        ip += 1
     
     elif operator == "endfunc":
-        ip = ipStack.pop()
         memory.memoryStack.pop()
+        for x in range(0, len(memory.functions[function])):
+            memory.counters[x] -= int(memory.functions[function][x])
+        ip = ipStack.pop()
 
     elif operator == "era":
-        memory.memoryStack.append({})
+        function = result
+        for x in range(0, len(memory.functions[function])):
+            memory.counters[x] += int(memory.functions[function][x])
+            if (memory.counters[x] > 500):
+                print("Error: Stack Overflow of memory for modules")
+                exit()
+        ip += 1
 
     elif operator == "parameter":
-        memory.setValue(result, leftO)
+        memory.eraTemporary[result] = str(leftO)
+        ip += 1
 
     elif operator == "gosub":
-        ipStack.append(ip)
-        ip = result
+        memory.memoryStack.append(memory.eraTemporary)
+        memory.eraTemporary = {}
+        ipStack.append((ip + 1))
+        ip = int(result)
+
+    elif operator == "ver":
+        exp = memory.getValue(result)
+        if ((exp >= leftO) and (exp <= rightO)):
+            ip += 1
+        else:
+            print("Array out of bounds")
+            exit()
+
+    elif operator == "+dirb":
+        baseAddress = memory.quadruples[ip][2]
+        memory.setValue(result, (leftO + int(baseAddress)))
+        ip += 1

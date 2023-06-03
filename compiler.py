@@ -9,6 +9,8 @@ from Var import Var
 from QuadList import QuadList
 from Semantics import Semantics
 
+import os
+
 ### Sintaxis ###
 
 # PROGRAM
@@ -57,7 +59,7 @@ def p_var_dec2(p):
 
 def p_var_dec3(p):
     '''
-    var_dec3 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON
+    var_dec3 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON np_add_array
              | empty
     '''
     if (len(p) == 8):
@@ -67,7 +69,7 @@ def p_var_dec3(p):
 
 def p_var_dec4(p):
     '''
-    var_dec4 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON
+    var_dec4 : VAR type ID LEFTBRACKET CTEINT RIGHTBRACKET LEFTBRACKET CTEINT RIGHTBRACKET SEMICOLON np_add_matrix
              | empty
     '''
     if (len(p) == 11):
@@ -253,7 +255,7 @@ def p_w_cycle(p):
 # F_CYCLE
 def p_f_cycle(p):
     '''
-    f_cycle : FOR LEFTPARENTHESIS assignment np_push_for exp SEMICOLON exp RIGHTPARENTHESIS np_check_for LEFTCURLYBRACE body RIGHTCURLYBRACE np_for_end
+    f_cycle : FOR LEFTPARENTHESIS assignment np_push_for assignment exp RIGHTPARENTHESIS np_check_for LEFTCURLYBRACE body RIGHTCURLYBRACE np_for_end
     '''
     p[0] = ('rule f_cycle: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11])
 
@@ -272,10 +274,14 @@ def p_write(p):
     p[0] = ('rule write: ', p[1], p[2], p[3], p[4], p[5])
 
 # CALL
+def p_call_exp(p):
+    '''
+    call_exp : ID np_verify_call LEFTPARENTHESIS np_generate_era call1 RIGHTPARENTHESIS np_end_call
+    '''
+
 def p_call(p):
     '''
-    call : ID np_verify_call LEFTPARENTHESIS np_generate_era call1 RIGHTPARENTHESIS np_end_call
-         | ID np_verify_call LEFTPARENTHESIS np_generate_era call1 RIGHTPARENTHESIS np_end_call SEMICOLON 
+    call : ID np_verify_call LEFTPARENTHESIS np_generate_era call1 RIGHTPARENTHESIS np_end_call SEMICOLON 
     '''
     if (len(p) == 4):
         p[0] = ('rule call: ', p[1], p[2], p[3])
@@ -524,7 +530,7 @@ def p_f(p):
       | CTESTRING np_add_constant_string
       | ctebool np_add_constant_bool
       | variable np_push_id
-      | call
+      | call_exp
     '''
     if (len(p) == 4):
         p[0] = ('rule f: ', p[1], p[2], p[3])
@@ -586,6 +592,9 @@ Cstring = [22000, 22999]
 Cchar = [23000, 23999]
 Cbool = [24000, 24999]
 
+# Apuntadores de arreglos
+Tpointers = [25000, 25999]
+
 ### Contadores para variables ###
 # Globales
 CGint = 0
@@ -614,6 +623,9 @@ CCfloat = 0
 CCstring = 0
 CCchar = 0
 CCbool = 0
+
+# Apuntadores de arreglos
+CTpointers = 0
 
 ### Cubo Semantico ###
 semanticCube = Semantics()
@@ -692,6 +704,8 @@ def p_np_reset_counters(p):
     CTchar = 0
     global CTbool
     CTbool = 0
+    global CTpointers
+    CTpointers = 0
 
 def p_np_create_return(p):
     '''
@@ -708,7 +722,7 @@ def p_np_create_return(p):
         if (funcType == operandType):
             QuadrupleList.addQuad("return", operand, None, FunctionTable.table[scope].startAddress)
         else:
-            print("Error: Return expression for function" + scope + " is not the same as the function type")
+            print("Error: Return expression for function " + scope + " is not the same as the function type")
             exit()
 
 def p_np_end_module(p):
@@ -719,7 +733,7 @@ def p_np_end_module(p):
     funcType = FunctionTable.getFuncType(scope)
     if ((funcType == "void")):
         if (quad.operator != 17):
-            size = FuncSize(CLint, CLfloat, CLstring, CLchar, CLbool, CTint, CTfloat, CTstring, CTchar, CTbool)
+            size = FuncSize(CLint, CLfloat, CLstring, CLchar, CLbool, CTint, CTfloat, CTstring, CTchar, CTbool, CTpointers)
             FunctionTable.addFuncSize(scope, size)
             QuadrupleList.addQuad("endfunc", None, None, None)
         else: 
@@ -727,7 +741,7 @@ def p_np_end_module(p):
             exit()
     else:
         if(quad.operator == 17):
-            size = FuncSize(CLint, CLfloat, CLstring, CLchar, CLbool, CTint, CTfloat, CTstring, CTchar, CTbool)
+            size = FuncSize(CLint, CLfloat, CLstring, CLchar, CLbool, CTint, CTfloat, CTstring, CTchar, CTbool, CTpointers)
             FunctionTable.addFuncSize(scope, size)
             QuadrupleList.addQuad("endfunc", None, None, None)
         else:
@@ -835,17 +849,394 @@ def p_np_set_goto_main(p):
     address = jumpStack.pop()
     QuadrupleList.editQuadGoto(address, len(QuadrupleList.list))
 
+### Guardar arreglos ###
+def p_np_add_array(p):
+    '''
+    np_add_array : empty
+    '''
+    arrayType = p[-6][1]
+    arrayName = p[-5]
+    dim1 = str(int(p[-3]) - 1)
+
+    global CCint
+    address = Cint[0] + CCint
+    name = "0"
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+
+    address = Cint[0] + CCint
+    name = dim1
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+
+    addArray(arrayType, arrayName, dim1)
+
+def p_np_add_matrix(p):
+    '''
+    np_add_matrix : empty
+    '''
+    arrayType = p[-9][1]
+    arrayName = p[-8]
+    dim1 = str(int(p[-6]) - 1)
+    dim2 = str(int(p[-3]) - 1)
+
+    global CCint
+    address = Cint[0] + CCint
+    name = "0"
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+
+    address = Cint[0] + CCint
+    name = dim1
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+
+    address = Cint[0] + CCint
+    name = dim2
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+    
+    addMatrix(arrayType, arrayName, dim1, dim2)
+
+def addArray(arrayType, arrayName, dim1):
+    initialAddress = 0
+    if(scope == "main"):
+        if (arrayType == "int"):
+            global CGint
+            initialAddress = Gint[0] + CGint
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Gint[1]):
+                print("Stack overflow of global integers for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CGint += (int(dim1) + 1)
+
+        if (arrayType == "float"):
+            global CGfloat
+            initialAddress = Gfloat[0] + CGfloat
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Gfloat[1]):
+                print("Stack overflow of global floats for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CGfloat += (int(dim1) + 1)
+
+        if (arrayType == "string"):
+            global CGstring
+            initialAddress = Gstring[0] + CGstring
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Gstring[1]):
+                print("Stack overflow of global strings for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CGstring += (int(dim1) + 1)
+
+        if (arrayType == "char"):
+            global CGchar
+            initialAddress = Gchar[0] + CGchar
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Gchar[1]):
+                print("Stack overflow of global chars for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CGchar += (int(dim1) + 1)
+
+        if (arrayType == "bool"):
+            global CGbool
+            initialAddress = Gbool[0] + CGbool
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Gbool[1]):
+                print("Stack overflow of global bools for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CGbool += (int(dim1) + 1)
+
+    else:
+        if (arrayType == "int"):
+            global CLint
+            initialAddress = Lint[0] + CLint
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Lint[1]):
+                print("Stack overflow of local integers for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CLint += (int(dim1) + 1)
+
+        if (arrayType == "float"):
+            global CLfloat
+            initialAddress = Lfloat[0] + CLfloat
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Lfloat[1]):
+                print("Stack overflow of local floats for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CLfloat += (int(dim1) + 1)
+
+        if (arrayType == "string"):
+            global CLstring
+            initialAddress = Lstring[0] + CLstring
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Lstring[1]):
+                print("Stack overflow of local strings for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CLstring += (int(dim1) + 1)
+
+        if (arrayType == "char"):
+            global CLchar
+            initialAddress = Lchar[0] + CLchar
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Lchar[1]):
+                print("Stack overflow of local chars for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CLchar += (int(dim1) + 1)
+
+        if (arrayType == "bool"):
+            global CLbool
+            initialAddress = Lbool[0] + CLbool
+            finalAddress = initialAddress + (int(dim1))
+            if (finalAddress > Lbool[1]):
+                print("Stack overflow of local bools for array " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addArray(arrayName, initialAddress, dim1)
+                CLbool += (int(dim1) + 1)
+
+def addMatrix(arrayType, arrayName, dim1, dim2):
+    initialAddress = 0
+    if(scope == "main"):
+        if (arrayType == "int"):
+            global CGint
+            initialAddress = Gint[0] + CGint
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Gint[1]):
+                print("Stack overflow of global integers for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CGint += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "float"):
+            global CGfloat
+            initialAddress = Gfloat[0] + CGfloat
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Gfloat[1]):
+                print("Stack overflow of global floats for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CGfloat += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "string"):
+            global CGstring
+            initialAddress = Gstring[0] + CGstring
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Gstring[1]):
+                print("Stack overflow of global strings for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CGstring += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "char"):
+            global CGchar
+            initialAddress = Gchar[0] + CGchar
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Gchar[1]):
+                print("Stack overflow of global chars for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CGchar += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "bool"):
+            global CGbool
+            initialAddress = Gbool[0] + CGbool
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Gbool[1]):
+                print("Stack overflow of global bools for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CGbool += ((int(dim1) + 1) * (int(dim2) + 1))
+
+    else:
+        if (arrayType == "int"):
+            global CLint
+            initialAddress = Lint[0] + CLint
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Lint[1]):
+                print("Stack overflow of local integers for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CLint += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "float"):
+            global CLfloat
+            initialAddress = Lfloat[0] + CLfloat
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Lfloat[1]):
+                print("Stack overflow of local floats for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CLfloat += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "string"):
+            global CLstring
+            initialAddress = Lstring[0] + CLstring
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Lstring[1]):
+                print("Stack overflow of local strings for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CLstring += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "char"):
+            global CLchar
+            initialAddress = Lchar[0] + CLchar
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Lchar[1]):
+                print("Stack overflow of local chars for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CLchar += ((int(dim1) + 1) * (int(dim2) + 1))
+
+        if (arrayType == "bool"):
+            global CLbool
+            initialAddress = Lbool[0] + CLbool
+            finalAddress = initialAddress + ((int(dim1) + 1) * (int(dim2) + 1)) - 1
+            if (finalAddress > Lbool[1]):
+                print("Stack overflow of local bools for matrix " + arrayName)
+                exit()
+            else:
+                FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
+                CLbool += ((int(dim1) + 1) * (int(dim2) + 1))
+
+
 #//TODO: Agregar funcionalidad para guardar direcciones de arreglos
 def p_np_push_id(p):
     '''
     np_push_id : empty
     '''
-    name = p[-1][1]
-    address = FunctionTable.searchVar(name, scope)
-    varType = determineVarType(address)
+    if (len(p[-1][2]) == 5):
+        # Si el id es matriz
+        if(len(p[-1][2][4]) == 4):
+            expAddress2 = operandsStack.pop()
+            expType2 = typeStack.pop()
 
-    operandsStack.append(address)
-    typeStack.append(varType)
+            expAddress1 = operandsStack.pop()
+            expType1 = typeStack.pop() 
+            if ((expType2 == "int") and (expType1 == "int")):
+                global CTpointers
+
+                arrayName = p[-1][1]
+                arrayAddress = FunctionTable.getVarAddress(arrayName, scope)
+                arrayType = determineVarType(arrayAddress, scope)
+                dim1 = FunctionTable.getArrayDimension(arrayName, scope)
+                dim2 = FunctionTable.getMatrixDimension(arrayName, scope)
+                dim1Address = Constants.searchVar(dim1, "main").address
+                dim2Address = Constants.searchVar(dim2, "main").address
+                zeroAddress = Constants.searchVar("0", "main").address
+
+                pointerAddress = Tpointers[0] + CTpointers
+                if (pointerAddress > Tpointers[1]):
+                    print("Stack overflow of pointers for array " + arrayName)
+                    exit()
+                else:
+                    FunctionTable.table[scope].varsTable.addVar(str(pointerAddress), pointerAddress)
+                    CTpointers += 1
+
+                    QuadrupleList.addQuad("ver", zeroAddress, dim1Address, expAddress1)
+                    temp1 = determineTempAdress("int")
+                    QuadrupleList.addQuad("*", expAddress1, dim2Address, temp1) # s1*d2
+                    QuadrupleList.addQuad("ver", zeroAddress, dim2Address, expAddress2)
+                    temp2 = determineTempAdress("int")
+                    QuadrupleList.addQuad("+", temp1, expAddress2, temp2) # + s2
+                    # UNICA EXCEPCION A LA REGLA DE USAR PURAS DIRECCIONES
+                    # Se suma lo que este guardado en la expAddress y la arrayAddress se suma tal cual esta
+                    # Para marcar esta excepcion, basate en la direccion del pointer address, de ahi en fuera todas las demas sumas funcionan igual
+                    QuadrupleList.addQuad("+dirb", temp2, arrayAddress, pointerAddress) # + dirB
+                    operandsStack.append(pointerAddress)
+                    typeStack.append(arrayType)
+
+            else:
+                print("Expression sent to index array " + arrayName + " is not integer. You can only index arrays with integers")
+                exit()
+        
+        # Si el id es arreglo
+        else:
+            expAddress = operandsStack.pop()
+            expType = typeStack.pop() 
+            if (expType == "int"):
+                arrayName = p[-1][1]
+                arrayAddress = FunctionTable.getVarAddress(arrayName, scope)
+                arrayType = determineVarType(arrayAddress, scope)
+                dim1 = FunctionTable.getArrayDimension(arrayName, scope)
+
+                dim1Address = Constants.searchVar(dim1, "main").address
+                zeroAddress = Constants.searchVar("0", "main").address
+
+                pointerAddress = Tpointers[0] + CTpointers
+                if (pointerAddress > Tpointers[1]):
+                    print("Stack overflow of pointers for array " + arrayName)
+                    exit()
+                else:
+                    FunctionTable.table[scope].varsTable.addVar(str(pointerAddress), pointerAddress)
+                    CTpointers += 1
+
+                    QuadrupleList.addQuad("ver", zeroAddress, dim1Address, expAddress)
+                    # UNICA EXCEPCION A LA REGLA DE USAR PURAS DIRECCIONES
+                    # Se suma lo que este guardado en la expAddress y la arrayAddress se suma tal cual esta
+                    # Para marcar esta excepcion, basate en la direccion del pointer address, de ahi en fuera todas las demas sumas funcionan igual
+                    QuadrupleList.addQuad("+dirb", expAddress, arrayAddress, pointerAddress) # s2 + dirB
+                    operandsStack.append(pointerAddress)
+                    typeStack.append(arrayType)
+            else:
+                print("Expression sent to index array " + arrayName + " is not integer. You can only index arrays with integers")
+                exit()
+
+
+    else:
+        name = p[-1][1]
+        address = FunctionTable.getVarAddress(name, scope)
+        varType = determineVarType(address)
+
+        operandsStack.append(address)
+        typeStack.append(varType)
 
 ### Guardar Constantes ###
 Constants = VarsTable()
@@ -909,7 +1300,7 @@ def p_np_add_constant_string(p):
     np_add_constant_string : empty
     '''
     global CCstring
-    address = Cstring[0] + Cstring
+    address = Cstring[0] + CCstring
     name = p[-1]
     if (address > Cstring[1]):
         print("Stack overflow of constant strings for constant " + name)
@@ -1013,7 +1404,7 @@ def p_np_pop_operator_c(p):
            or (operatorStack[-1] == ">")
            or (operatorStack[-1] == "<=")
            or (operatorStack[-1] == ">=")
-           or (operatorStack[-1] == "==")
+           or (operatorStack[-1] == "#=")
            or (operatorStack[-1] == "!=")):
             pushTemporal()
 
@@ -1228,15 +1619,10 @@ def p_np_check_for(p):
         print("Type mismatch at for boolean component, it is not boolean")
         exit()
     else:
-        expTypeInteger = typeStack.pop()
-        if (expTypeInteger != "int"):
-            print("Type mismatch at for integer component, it is not integer")
-            exit()
-        else:
-            resultBoolean = operandsStack.pop()
-            QuadrupleList.addQuad("gotof", resultBoolean, None, None)
-            jumpStack.append(len(QuadrupleList.list) - 1)
-            operandsStack.pop()
+        resultBoolean = operandsStack.pop()
+        QuadrupleList.addQuad("gotof", resultBoolean, None, None)
+        jumpStack.append(len(QuadrupleList.list) - 1)
+        
 
 def p_np_for_end(p):
     '''
@@ -1356,26 +1742,36 @@ def p_np_end_program(p):
 
 parser = yacc()
 
-file = open("prueba.w", "r")
-content = file.read()
-result = parser.parse(content)
+fileName = input("De el nombre del archivo para compilar con terminacion .w: ")
+temp, fileExtension = os.path.splitext(fileName)
 
-file.close()
+if (fileExtension != ".w"):
+    print("Error: Nombre del archivo no tiene terminacion .w y no se compilara")
 
-### Inicio del proceso para crear el codigo objeto ###
-objFile = open("obj.a", "w")
+else:
+    file = open(fileName, "r")
+    content = file.read()
+    result = parser.parse(content)
 
-constantsList = Constants.getConstants()
-functionList = FunctionTable.getAllFunc()
+    file.close()
 
-for constant in constantsList:
-    objFile.write(f'{str(constant)} | ')
-objFile.write("%% \n")
+    ### Inicio del proceso para crear el codigo objeto ###
+    objFile = open("obj.a", "w")
 
-for function in functionList:
-    objFile.write(f'{str(function)} | ')
-objFile.write("%% \n")
+    constantsList = Constants.getConstants()
+    functionList = FunctionTable.getAllFunc()
 
-for x in range(0,len(QuadrupleList.list)):
-    objFile.write(QuadrupleList.list[x].toString() + "\n")
-objFile.write("%%")
+    for constant in constantsList:
+        objFile.write(f'{str(constant)} | ')
+    objFile.write("%% \n")
+
+    for function in functionList:
+        objFile.write(f'{str(function)} | ')
+    objFile.write("%% \n")
+    for x in range(0,len(QuadrupleList.list)):
+        objFile.write(QuadrupleList.list[x].toString() + "\n")
+    objFile.write("%%")
+
+    objFile.close()
+
+    print("Archivo objeto creado o sobreescrito en la misma carpeta con nombre obj.a")

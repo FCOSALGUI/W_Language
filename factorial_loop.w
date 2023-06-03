@@ -1,6 +1,9 @@
-var int x, fact, numero;
+var int x, fact, n;
+main {
+    fact = 1;
+    write(" Enter a number to find factorial: ");
+    read(n);
 
-func void factorial(int n){
     for( x = 1 ; x = x + 1 ; x <= n){
         fact = fact * x;
     }
@@ -10,13 +13,6 @@ func void factorial(int n){
     write(" ");
     write(" is ");
     write(fact);
-}
-
-main {
-    fact = 1;
-    write(" Enter a number to find factorial: ");
-    read(numero);
-    factorial(numero);
 }
 
 end
