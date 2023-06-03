@@ -1,4 +1,5 @@
 var int x, fact, n;
+var string lineJump;
 main {
     fact = 1;
     write(" Enter a number to find factorial: ");

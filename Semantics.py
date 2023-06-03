@@ -80,6 +80,8 @@ class Semantics:
                 'bool': {
                     '&&' :  'bool',
                     '||' : 'bool',
+                    '#=': 'bool',
+                    '!=': 'bool'
                 }
             }
 

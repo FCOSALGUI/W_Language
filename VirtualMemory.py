@@ -34,11 +34,11 @@ class VirtualMemory:
                         elif(valueType == "float"):
                             return float(value)
                         elif(valueType == "string"):
-                            return str(value)
+                            return value
                         elif(valueType == "char"):
-                            return str(value)
+                            return value
                         elif(valueType == "pointer"):
-                            return self.getValue(value)
+                            return value
                         elif(valueType == "bool"):
                             if(value.lower() == "true"):
                                 return True
@@ -60,11 +60,11 @@ class VirtualMemory:
                         elif(valueType == "float"):
                             return float(value)
                         elif(valueType == "string"):
-                            return str(value)
+                            return value
                         elif(valueType == "char"):
-                            return str(value)
+                            return value
                         elif(valueType == "pointer"):
-                            return self.getValue(value)
+                            return value
                         elif(valueType == "bool"):
                             if(value.lower() == "true"):
                                 return True
@@ -89,7 +89,7 @@ class VirtualMemory:
                     elif(valueType == "char"):
                         return value
                     elif(valueType == "pointer"):
-                        return self.getValue(value)
+                        return value
                     elif(valueType == "bool"):
                         if(value.lower() == "true"):
                             return True

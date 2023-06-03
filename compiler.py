@@ -255,7 +255,7 @@ def p_w_cycle(p):
 # F_CYCLE
 def p_f_cycle(p):
     '''
-    f_cycle : FOR LEFTPARENTHESIS assignment np_push_for assignment exp RIGHTPARENTHESIS np_check_for LEFTCURLYBRACE body RIGHTCURLYBRACE np_for_end
+    f_cycle : FOR LEFTPARENTHESIS assignment np_push_for assignment np_for_jump exp RIGHTPARENTHESIS np_check_for LEFTCURLYBRACE body RIGHTCURLYBRACE np_for_end
     '''
     p[0] = ('rule f_cycle: ', p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11])
 
@@ -887,6 +887,7 @@ def p_np_add_matrix(p):
     arrayName = p[-8]
     dim1 = str(int(p[-6]) - 1)
     dim2 = str(int(p[-3]) - 1)
+    dim2FullDim = str(int(dim2) + 1)
 
     global CCint
     address = Cint[0] + CCint
@@ -909,6 +910,15 @@ def p_np_add_matrix(p):
 
     address = Cint[0] + CCint
     name = dim2
+    if (address > Cint[1]):
+        print("Stack overflow of constant integers for constant " + name)
+        exit()
+    else:
+        Constants.addConstant(name, address)
+        CCint += 1
+
+    address = Cint[0] + CCint
+    name = dim2FullDim
     if (address > Cint[1]):
         print("Stack overflow of constant integers for constant " + name)
         exit()
@@ -1146,8 +1156,6 @@ def addMatrix(arrayType, arrayName, dim1, dim2):
                 FunctionTable.table[scope].varsTable.addMatrix(arrayName, initialAddress, dim1, dim2)
                 CLbool += ((int(dim1) + 1) * (int(dim2) + 1))
 
-
-#//TODO: Agregar funcionalidad para guardar direcciones de arreglos
 def p_np_push_id(p):
     '''
     np_push_id : empty
@@ -1165,11 +1173,13 @@ def p_np_push_id(p):
 
                 arrayName = p[-1][1]
                 arrayAddress = FunctionTable.getVarAddress(arrayName, scope)
-                arrayType = determineVarType(arrayAddress, scope)
+                arrayType = determineVarType(arrayAddress)
                 dim1 = FunctionTable.getArrayDimension(arrayName, scope)
                 dim2 = FunctionTable.getMatrixDimension(arrayName, scope)
+                dim2FullDim = str(int(dim2) + 1)
                 dim1Address = Constants.searchVar(dim1, "main").address
                 dim2Address = Constants.searchVar(dim2, "main").address
+                dim2FullDimAddress = Constants.searchVar(dim2FullDim, "main").address
                 zeroAddress = Constants.searchVar("0", "main").address
 
                 pointerAddress = Tpointers[0] + CTpointers
@@ -1182,7 +1192,7 @@ def p_np_push_id(p):
 
                     QuadrupleList.addQuad("ver", zeroAddress, dim1Address, expAddress1)
                     temp1 = determineTempAdress("int")
-                    QuadrupleList.addQuad("*", expAddress1, dim2Address, temp1) # s1*d2
+                    QuadrupleList.addQuad("*", expAddress1, dim2FullDimAddress, temp1) # s1*d2
                     QuadrupleList.addQuad("ver", zeroAddress, dim2Address, expAddress2)
                     temp2 = determineTempAdress("int")
                     QuadrupleList.addQuad("+", temp1, expAddress2, temp2) # + s2
@@ -1204,7 +1214,7 @@ def p_np_push_id(p):
             if (expType == "int"):
                 arrayName = p[-1][1]
                 arrayAddress = FunctionTable.getVarAddress(arrayName, scope)
-                arrayType = determineVarType(arrayAddress, scope)
+                arrayType = determineVarType(arrayAddress)
                 dim1 = FunctionTable.getArrayDimension(arrayName, scope)
 
                 dim1Address = Constants.searchVar(dim1, "main").address
@@ -1318,8 +1328,8 @@ def p_np_add_constant_bool(p):
     np_add_constant_bool : empty
     '''
     global CCbool
-    address = Cbool[0] + Cbool
-    name = p[-1]
+    address = Cbool[0] + CCbool
+    name = p[-1][1]
     if (address > Cbool[1]):
         print("Stack overflow of constant bools for constant " + name)
         exit()
@@ -1608,7 +1618,16 @@ def p_np_push_for(p):
     '''
     np_push_for : empty
     '''
+    QuadrupleList.addQuad("goto", None, None, None)
     jumpStack.append(len(QuadrupleList.list))
+    jumpStack.append((len(QuadrupleList.list) - 1))
+    
+def p_np_for_jump(p):
+    '''
+    np_for_jump : empty
+    '''
+    jump = jumpStack.pop()
+    QuadrupleList.editQuadGoto(jump,len(QuadrupleList.list))
 
 def p_np_check_for(p):
     '''
