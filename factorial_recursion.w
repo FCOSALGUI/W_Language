@@ -15,7 +15,8 @@ var int result;
 }
 
 main {
-    x = 7;
+    write(" Enter a number to find factorial: ");
+    read(x);
     write(fact(x));
 }
 

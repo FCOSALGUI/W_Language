@@ -28,7 +28,6 @@ var int i;
 {
     for(i=0; i=i+1; i < n){
         write(arr[i]);
-        read(lineJump);
     }
 }
 
@@ -48,7 +47,7 @@ main {
     printArray();
 
     bubbleSort(n);
-
+    read(lineJump);
     write(" Sorted Array: (press enter to see elements of array) ");
     read(lineJump);
     printArray();
